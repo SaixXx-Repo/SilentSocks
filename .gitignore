@@ -1,0 +1,24 @@
+# Python and Environment
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.env
+
+# MacOS
+.DS_Store
+
+# Project Specific Data (usually not committed)
+sales_data.db
+filesfromeed/
+filesfromeed.zip
+
+# Portable Python Environment (too large for git)
+python_portable/
+
+# Tools
+get-pip.py
+
+# IDEs
+.vscode/
+.idea/

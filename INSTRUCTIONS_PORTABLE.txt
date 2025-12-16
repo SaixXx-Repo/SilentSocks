@@ -1,0 +1,47 @@
+HOW TO CREATE A "PORTABLE" (NO INSTALL) VERSION
+===============================================
+
+If you want to give this to someone on Windows who CANNOT install Python,
+you can bundle a "Portable Python" with the app.
+
+Step 1: Download Python Embeddable Package
+------------------------------------------
+1. Go to: https://www.python.org/downloads/windows/
+2. Look for the latest "Windows embeddable package (64-bit)" (e.g., Python 3.12).
+3. Download the zip file.
+
+Step 2: Prepare the Folder
+--------------------------
+1. Unzip the Python package into a new folder named "python_portable" INSIDE your project folder.
+   (So you have: app.py, filesfromeed/, python_portable/...)
+2. IMPORTANT: Open "python_portable" and look for a file named something like "python312._pth".
+   Open it with Notepad and uncomment (remove #) the line "import site".
+   (This is required for pip to work).
+
+Step 3: Install Pip (One-time setup for you)
+--------------------------------------------
+1. Download get-pip.py: https://bootstrap.pypa.io/get-pip.py
+2. Save it to your project folder.
+3. Open a terminal in your project folder and run:
+   .\python_portable\python-3.13.11-embed-amd64\python.exe get-pip.py
+
+Step 4: Install Dependencies into Portable Python
+-------------------------------------------------
+Run this command in your terminal:
+   .\python_portable\python-3.13.11-embed-amd64\python.exe -m pip install -r requirements.txt
+
+Step 5: Create a Portable Launcher (run_portable.bat)
+-----------------------------------------------------
+Create a new file named "run_portable.bat" with this content:
+
+   @echo off
+   TITLE Sales App (Portable)
+   echo Starting...
+   .\python_portable\python.exe -m streamlit run app.py
+   pause
+
+Step 6: Distribute
+------------------
+Zip the whole folder (including the 50MB+ python_portable folder).
+Send it to the user. They just click "run_portable.bat".
+
