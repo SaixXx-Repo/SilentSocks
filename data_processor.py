@@ -71,15 +71,31 @@ def process_sales_file(uploaded_file):
         # For now, we'll try to find the date range or just use current date/filename date
         # If filename has date, use that.
         filename = uploaded_file.name if hasattr(uploaded_file, 'name') else "Unknown"
-        date_match = re.search(r'25(\d{2})(\d{2})', filename) # Matches YYMMDD pattern roughly
-        if date_match:
-            # Construct a date (1st of that month)
-            # 250101 -> 2025-01-01
-            year = "20" + filename.split('Silent socks ')[1][:2]
-            month = filename.split('Silent socks ')[1][2:4]
-            file_date = f"{year}-{month}-01"
+        # Match pattern: Silent socks YYMMDD...
+        # We look for 6 digits after "Silent socks " or just 6 digits that look like a date
+        # The file format seen is: Försäljningsstatistik Silent socks 250101-250131.xlsx
+        
+        # Regex to capture Year(YY), Month(MM), Day(DD)
+        # Look for the pattern: Any text -> date -> hyphen
+        match = re.search(r'Silent socks\s+(\d{2})(\d{2})(\d{2})', filename, re.IGNORECASE)
+        
+        if match:
+            yy, mm, dd = match.groups()
+            year = f"20{yy}"
+            month = mm
+            # file_date = f"{year}-{month}-{dd}" 
+            # Usually we want the month start for consistency, or the actual start date?
+            # Previous logic was strict. Let's use the actual start date found.
+            file_date = f"{year}-{month}-{dd}"
         else:
-            file_date = pd.Timestamp.now().strftime('%Y-%m-%d')
+            # Fallback: try to find just any 6 digit date pattern
+            date_fallback = re.search(r'(\d{2})(\d{2})(\d{2})-(\d{2})(\d{2})(\d{2})', filename)
+            if date_fallback:
+                 yy, mm, dd = date_fallback.groups()[0:3]
+                 year = f"20{yy}"
+                 file_date = f"{year}-{mm}-{dd}"
+            else:
+                 file_date = pd.Timestamp.now().strftime('%Y-%m-%d')
 
         records = []
         current_customer_id = None
