@@ -23,19 +23,16 @@ A local, portable Streamlit application for analyzing sales data from Excel file
 ## Running the App
 
 ### Windows
-Run the `run_windows.bat` file or execute manually:
-```bash
-streamlit run app.py
-```
+Double-click `run_windows.bat`. This script automatically detects if you are using the portable version or a system installation.
 
 ### Mac/Linux
-Run the `run.sh` script or execute manually:
+Double-click `run_mac.command` or execute manually:
 ```bash
-streamlit run app.py
+./run_mac.command
 ```
 
 ## Portable Version (Windows Only)
-This project comes with a configured portable Python environment (if distributed as a bundle). Run `run_portable.bat` to launch without installing Python locally.
+This project comes with a configured portable Python environment. Simply run `run_windows.bat` to launch.
 
 ## Project Structure
 - `app.py`: Main application entry point.

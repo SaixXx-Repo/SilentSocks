@@ -47,6 +47,14 @@ def init_db():
             )
         ''')
     
+    # Create settings table
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS settings (
+            key TEXT PRIMARY KEY,
+            value TEXT
+        )
+    ''')
+    
     conn.commit()
     conn.close()
 
@@ -156,5 +164,34 @@ def clear_database():
     c = conn.cursor()
     c.execute("DELETE FROM sales")
     c.execute("DELETE FROM customers")
+    conn.commit()
+    conn.close()
+
+def save_setting(key, value):
+    """Save a setting (e.g., API key) to the database."""
+    conn = sqlite3.connect(DB_NAME)
+    c = conn.cursor()
+    c.execute('''
+        INSERT INTO settings (key, value)
+        VALUES (?, ?)
+        ON CONFLICT(key) DO UPDATE SET value=excluded.value
+    ''', (key, value))
+    conn.commit()
+    conn.close()
+
+def get_setting(key):
+    """Retrieve a setting from the database."""
+    conn = sqlite3.connect(DB_NAME)
+    c = conn.cursor()
+    c.execute("SELECT value FROM settings WHERE key = ?", (key,))
+    result = c.fetchone()
+    conn.close()
+    return result[0] if result else None
+
+def delete_setting(key):
+    """Delete a setting from the database."""
+    conn = sqlite3.connect(DB_NAME)
+    c = conn.cursor()
+    c.execute("DELETE FROM settings WHERE key = ?", (key,))
     conn.commit()
     conn.close()

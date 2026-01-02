@@ -2,8 +2,12 @@ SALES ANALYSIS TOOL - USER GUIDE
 
 HOW TO RUN THE APP
 ==================
-1. Locate the file named "start_app.command" in this folder.
-2. Double-click it.
+1. Windows:
+   Locate and double-click "run_windows.bat".
+
+2. Mac/Linux:
+   Locate and double-click "run_mac.command".
+
 3. A terminal window will open, and shortly after, your web browser will launch the app.
    (The first time you run it, it might take a few minutes to set up).
 
@@ -13,12 +17,11 @@ Simply close the terminal window (the black text window) when you are done.
 
 PREREQUISITES
 =============
-You need Python 3 installed on your Mac. Most Macs have it by default.
-If the script complains about missing Python, download it here: 
-https://www.python.org/downloads/
+- Windows: No installation needed if using the portable version. Otherwise, install Python 3.
+- Mac: You need Python 3 installed. Most Macs have it by default.
 
 TROUBLESHOOTING
 ===============
-- If the app doesn't start, try right-clicking "start_app.command" and selecting "Open".
+- If the app doesn't start on Mac, try right-clicking "run_mac.command" and selecting "Open".
 - Ensure you are connected to the internet the first time you run it.
 

@@ -3,22 +3,41 @@ import numpy as np
 from sklearn.linear_model import LinearRegression
 import datetime
 import google.generativeai as genai
+from openai import OpenAI
 import os
 
-class AIService:
-    def __init__(self, api_key=None):
-        self.api_key = api_key
-        self.model = None
-        if api_key:
-            self._configure_model(api_key)
+import traceback
 
-    def _configure_model(self, api_key):
+class AIService:
+    def __init__(self, api_key=None, provider='gemini'):
+        self.api_key = api_key
+        self.provider = provider
+        self.model = None
+        self.client = None
+        
+        if api_key:
+            self._configure_model(api_key, provider)
+
+    def _configure_model(self, api_key, provider):
         try:
-            genai.configure(api_key=api_key)
-            self.model = genai.GenerativeModel('gemini-2.5-flash')
+            print(f"Configuring {provider} with key: {api_key[:4]}...{api_key[-4:] if len(api_key)>8 else '****'} length={len(api_key)}")
+            if provider == 'gemini':
+                genai.configure(api_key=api_key)
+                
+                # Check available models (optional debug print)
+                # models = [m.name for m in genai.list_models()]
+                # print(f"Available models: {models}")
+                
+                self.model = genai.GenerativeModel('gemini-2.5-flash-preview-09-2025')
+            elif provider == 'openai':
+                self.client = OpenAI(api_key=api_key)
+            self.last_error = None
         except Exception as e:
-            print(f"Error configuring Gemini: {e}")
+            print(f"Error configuring {provider}: {e}")
+            traceback.print_exc()
+            self.last_error = f"{str(e)}"
             self.model = None
+            self.client = None
 
     def analyze_data_gemini(self, df, context=""):
         """
@@ -28,10 +47,48 @@ class AIService:
              if not self.api_key:
                  return "⚠️ **API Key Missing**: Please provide a Google Gemini API Key to use this feature."
              # Try to reconfigure if key exists but model is None
-             self._configure_model(self.api_key)
+             self._configure_model(self.api_key, 'gemini')
              if not self.model:
-                 return "⚠️ **Configuration Error**: Could not initialize Gemini model. Check your API Key."
+                 error_msg = self.last_error if hasattr(self, 'last_error') and self.last_error else "Unknown error"
+                 return f"⚠️ **Configuration Error**: Could not initialize Gemini model. Details: {error_msg}"
+        
+        return self._generate_analysis(df, context, self._call_gemini)
 
+    def analyze_data_openai(self, df, context=""):
+        """
+        Analyze data using OpenAI API.
+        """
+        if not self.client:
+             if not self.api_key:
+                 return "⚠️ **API Key Missing**: Please provide an OpenAI API Key to use this feature."
+             # Try to reconfigure
+             self._configure_model(self.api_key, 'openai')
+             if not self.client:
+                 return "⚠️ **Configuration Error**: Could not initialize OpenAI client. Check your API Key."
+
+        return self._generate_analysis(df, context, self._call_openai)
+
+    def _call_gemini(self, prompt):
+        try:
+            response = self.model.generate_content(prompt)
+            return response.text
+        except Exception as e:
+            return f"⚠️ **Gemini API Error**: {str(e)}"
+
+    def _call_openai(self, prompt):
+        try:
+            response = self.client.chat.completions.create(
+                model="gpt-4o", # Or gpt-3.5-turbo depending on preference/cost
+                messages=[
+                    {"role": "system", "content": "You are a business data analyst."},
+                    {"role": "user", "content": prompt}
+                ]
+            )
+            return response.choices[0].message.content
+        except Exception as e:
+             return f"⚠️ **OpenAI API Error**: {str(e)}"
+
+    def _generate_analysis(self, df, context, api_callback):
         if df.empty:
             return "No data available for analysis."
 
@@ -43,11 +100,8 @@ class AIService:
         else:
             return "Error: Could not find sales amount column."
 
-        # Prepare summary statistics for the prompt
-        # Explicitly convert to float to avoid Series truth value ambiguity if single-element Series
-        # Use .item() if it's a Series, or just cast if scalar. Safest is float(scalar_value) after sum()
+        # Prepare summary statistics
         total_sales_val = df[amount_col].sum()
-        # Handle case where duplicates exist and sum() returned a Series
         if isinstance(total_sales_val, pd.Series):
              total_sales_val = total_sales_val.iloc[0]
         total_sales = float(total_sales_val)
@@ -87,7 +141,7 @@ class AIService:
 
         # Construct Prompt
         prompt = f"""
-        You are a business data analyst. Analyze the following sales data summary and provide strategic insights.
+        Analyze the following sales data summary and provide strategic insights.
         
         **Context**: {context}
         
@@ -105,58 +159,27 @@ class AIService:
         
         **Instructions**:
         1. Summarize the key performance indicators.
-        2. Identify the most important trends or observations (e.g., high concentration of sales in specific customers or products).
-        3. Provide 2-3 actionable recommendations for the business owner to increase profit or sales.
-        4. Keep the tone professional but accessible. Format with Markdown (headers, bullet points).
+        2. Identify the most important trends or observations.
+        3. Provide 2-3 actionable recommendations to increase profit or sales.
+        4. Keep the tone professional but accessible to a small business owner. Format with Markdown.
         """
 
-        try:
-            response = self.model.generate_content(prompt)
-            return response.text
-        except Exception as e:
-            return f"⚠️ **API Error**: {str(e)}"
+        return api_callback(prompt)
 
     def analyze_data(self, df, context=""):
         """
-        Legacy mock analysis (fallback if Gemini fails or key not provided).
+        Dispatch analysis to the configured provider.
         """
-        # ... (Existing mock logic kept as fallback, but typically we'll use gemini if key is present)
-        # For simplicity, if key is present, we try Gemini. If it fails, we return error.
-        # If no key, we return the mock message or specific prompt to enter key.
-        if self.api_key:
+        if self.provider == 'gemini':
             return self.analyze_data_gemini(df, context)
-            
-        # Fallback to mock if no key
-        return self._mock_analysis(df, context)
-
-    def _mock_analysis(self, df, context):
-        """Original mock implementation moved here"""
-        if df.empty:
-            return "No data available."
-            
-        # Map columns
-        if 'sales_amount' in df.columns:
-            amount_col = 'sales_amount'
-        elif 'total_amount' in df.columns:
-            amount_col = 'total_amount'
+        elif self.provider == 'openai':
+            return self.analyze_data_openai(df, context)
         else:
-            return "Error: Could not find sales amount column."
+            return f"Unknown provider: {self.provider}"
             
-        total_sales = df[amount_col].sum()
-        
-        try:
-            top_article = df.groupby('article')[amount_col].sum().idxmax()
-        except:
-            top_article = "N/A"
-            
-        analysis = (
-            f"### AI Analysis Result (Mock)\n\n"
-            f"**Note**: Provide a Gemini API Key to get real AI insights.\n\n"
-            f"**Context:** {context}\n\n"
-            f"Total Revenue: **{total_sales:,.2f}**\n"
-            f"Top Article: **{top_article}**"
-        )
-        return analysis
+    def _mock_analysis(self, df, context):
+        """Deprecated mock implementation"""
+        return "Mock analysis deprecated. Please use a valid API Key."
 
     def predict_trend(self, df):
         """
@@ -184,9 +207,9 @@ class AIService:
         model = LinearRegression()
         model.fit(X, y)
         
-        # Predict next 30 days
+        # Predict next 6 months (approx 180 days)
         last_date = daily_sales['date'].max()
-        future_dates = [last_date + datetime.timedelta(days=i) for i in range(1, 31)]
+        future_dates = [last_date + datetime.timedelta(days=i) for i in range(1, 181)]
         future_ordinals = [[d.toordinal()] for d in future_dates]
         
         future_sales = model.predict(future_ordinals)

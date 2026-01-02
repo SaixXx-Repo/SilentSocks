@@ -252,22 +252,48 @@ with tab2:
 with tab3:
     st.header("AI Analysis & Trends")
     from ai_service import AIService # Lazy import
+    from database import save_setting, get_setting, delete_setting
     
-    # API Key Handling
-    if 'gemini_api_key' not in st.session_state:
-        st.session_state.gemini_api_key = ''
-        
-    with st.expander("⚙️ AI Settings", expanded=not bool(st.session_state.gemini_api_key)):
-        st.markdown("""
-        To use the advanced AI features, you need a Google Gemini API Key.
-        [Get your API key here](https://aistudio.google.com/app/apikey)
+    # Provider Selection
+    provider = st.radio("Select AI Provider", ["Gemini", "ChatGPT"], horizontal=True)
+    provider_key = provider.lower().replace("chatgpt", "openai") # 'gemini' or 'openai'
+    db_key_name = f"{provider_key}_api_key"
+    
+    # Load Key from DB if not in session state or to check persistence
+    saved_key = get_setting(db_key_name)
+    
+    # Initialize session state for the key if needed
+    if db_key_name not in st.session_state:
+        st.session_state[db_key_name] = saved_key if saved_key else ""
+
+    # Display API Key Input
+    with st.expander(f"⚙️ {provider} Settings", expanded=not bool(st.session_state[db_key_name])):
+        st.markdown(f"""
+        To use {provider}, you need an API Key.
         """)
-        api_key_input = st.text_input("Enter Gemini API Key", value=st.session_state.gemini_api_key, type="password")
-        if api_key_input:
-            st.session_state.gemini_api_key = api_key_input
-            
-    # Initialize Service with Key
-    ai_service = AIService(api_key=st.session_state.gemini_api_key)
+        
+        # Input field
+        api_key_input = st.text_input(f"Enter {provider} API Key", value=st.session_state[db_key_name], type="password")
+        
+        col_save, col_del = st.columns([1, 1])
+        with col_save:
+            if st.button("Save Key"):
+                save_setting(db_key_name, api_key_input)
+                st.session_state[db_key_name] = api_key_input
+                st.success("API Key saved!")
+                st.rerun()
+                
+        with col_del:
+            if st.button("Delete Key", type="primary"):
+                delete_setting(db_key_name)
+                st.session_state[db_key_name] = ""
+                st.success("API Key deleted!")
+                st.rerun()
+
+    # Initialize Service
+    # Use the key from input (which mirrors session state)
+    current_key = st.session_state[db_key_name]
+    ai_service = AIService(api_key=current_key, provider=provider_key)
     
     # Simple pass-through for now, using the same data
     if df.empty:
@@ -346,7 +372,7 @@ with tab3:
                             y_col = 'sales_amount' if 'sales_amount' in trend_df.columns else 'total_amount'
                             
                             fig_trend = px.line(trend_df, x='date', y=y_col, color='type', 
-                                              title=f"Sales Prediction (Next 30 Days) - {context_str}",
+                                              title=f"Sales Prediction (Next 6 Months) - {context_str}",
                                               color_discrete_map={"Historical": "blue", "Predicted": "orange"})
                             st.plotly_chart(fig_trend, use_container_width=True)
                         else:
