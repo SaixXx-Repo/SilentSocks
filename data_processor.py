@@ -141,6 +141,36 @@ def process_sales_file(uploaded_file):
                     tb_kr = pd.to_numeric(row[6], errors='coerce') # User specifically requested "TB i kr"
                     sales_ex_vat = pd.to_numeric(row[8], errors='coerce')
                     
+                    # 1. Format Article ID: 'E' + 5 digits
+                    # Remove 'E' if present, convert to int, format back to E00000
+                    raw_id = str(article_id).upper().replace('E', '').strip()
+                    # Handle potential floats like '9005.0'
+                    if '.' in raw_id: 
+                         raw_id = raw_id.split('.')[0]
+                         
+                    if raw_id.isdigit():
+                        article_id = f"E{int(raw_id):05d}"
+                    else:
+                        article_id = f"E{raw_id}" # Fallback
+                        
+                    # 2. Clean Article Name: Remove everything before "Silent Socks"
+                    target_str = "Silent Socks"
+                    # Case insensitive search
+                    idx = article_name.lower().find(target_str.lower())
+                    if idx != -1:
+                        # Keep original casing from the found point onwards (assuming match casing implies target casing)
+                        # Actually strict requirement: "starts with Silent Socks"
+                        # We use the found index to slice.
+                        # However, user likely wants "Silent Socks..." casing preserved or fixed?
+                        # Let's preserve the "Silent Socks" casing from the string if found, or force it.
+                        # Simple slice:
+                        article_name = article_name[idx:]
+                        
+                        # Verify it starts with correct casing if needed, but user just said "cut out before"
+                        # If the string was "bla bla silent socks...", result is "silent socks..."
+                        # We might want to capitalize 'Silent Socks' properly if it was lowercase.
+                        # But simpler is just slice.
+                    
                     if pd.notna(quantity) and quantity != 0:
                          records.append({
                              'date': file_date,
